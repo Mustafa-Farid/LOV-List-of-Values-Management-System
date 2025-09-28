@@ -1,0 +1,178 @@
+openapi: 3.0.3
+info:
+  title: LOV (List of Values) Management System
+  description: Enterprise LOV retrieval system with IBM MQ integration for auditing and message tracing
+  version: 1.0.0
+  contact:
+    name: Enterprise API Support
+    email: enterprise-support@example.com
+
+servers:
+  - url: http://localhost:8080/lov
+    description: Development server
+
+paths:
+  /{lovCode}:
+    get:
+      summary: Retrieve List of Values by LOV Code
+      description: |
+        Fetches a list of values from Oracle database using stored procedures.
+        Includes comprehensive message dumping and audit trail generation via IBM MQ.
+        
+        **Enterprise Features:**
+        - Request/Response message dumping to IBM MQ
+        - Audit trail generation for compliance
+        - Unique message correlation IDs
+        - Channel-based request routing
+      parameters:
+        - name: lovCode
+          in: path
+          required: true
+          description: |
+            Numeric code identifying the specific list of values to retrieve.
+            Example: 1001 for Countries, 1002 for Currencies, etc.
+          schema:
+            type: integer
+            example: 1001
+      responses:
+        '200':
+          description: |
+            Successfully retrieved LOV data.
+            Request and response have been logged to dump queue and audit trail generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LOVListResponse'
+        '400':
+          description: Invalid LOV code format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: |
+            Internal server error. Possible issues:
+            - Database connection failure
+            - Stored procedure execution error
+            - IBM MQ connectivity issue
+            - XML marshalling error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    LOVListResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          description: HTTP status code
+          example: 200
+        message:
+          type: string
+          description: Response message
+          example: "SUCCESS"
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp in yyyy-MM-dd HH:mm:ss.SSSSSS format
+          example: "2024-01-15 14:30:45.123456"
+        data:
+          type: array
+          description: List of values data
+          items:
+            $ref: '#/components/schemas/LOVItem'
+      required:
+        - status
+        - message
+        - timestamp
+        - data
+
+    LOVItem:
+      type: object
+      properties:
+        code:
+          type: string
+          description: LOV item code
+          example: "USD"
+        name:
+          type: string
+          description: LOV item name/description
+          example: "US Dollar"
+      required:
+        - code
+        - name
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          description: HTTP status code
+          example: 500
+        message:
+          type: string
+          description: Error message
+          example: "Procedure Error"
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2024-01-15 14:30:45.123456"
+        errorCode:
+          type: string
+          description: Business error code
+          example: "878787"
+        errorDescription:
+          type: string
+          description: Detailed error description
+          example: "Stored procedure execution failed"
+      required:
+        - status
+        - message
+        - timestamp
+
+  parameters:
+    LOVCodeParameter:
+      name: lovCode
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Numeric code identifying the list of values
+
+  responses:
+    DatabaseError:
+      description: Database or stored procedure error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    MQError:
+      description: IBM MQ connectivity or message publishing error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+security:
+  - BasicAuth: []
+  - ApiKeyAuth: []
+
+tags:
+  - name: LOV Management
+    description: Enterprise List of Values retrieval operations
+  - name: Audit
+    description: Audit trail and message logging operations
